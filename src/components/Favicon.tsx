@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { getCachedFavicon, setCachedFavicon } from '../lib/faviconCache'
 
+const MAX_ICON_PX = 64
+
 function candidatesFor(url: string): string[] {
   try {
     const u = new URL(url)
@@ -20,6 +22,24 @@ function hostnameFor(url: string): string | null {
   } catch {
     return null
   }
+}
+
+/** Draws an image onto a canvas capped at MAX_ICON_PX (preserving aspect ratio) and returns a PNG data URL. */
+function toCappedDataUrl(
+  source: CanvasImageSource,
+  naturalWidth: number,
+  naturalHeight: number,
+): string | null {
+  const scale = Math.min(1, MAX_ICON_PX / Math.max(naturalWidth, naturalHeight, 1))
+  const width = Math.max(1, Math.round(naturalWidth * scale))
+  const height = Math.max(1, Math.round(naturalHeight * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.drawImage(source, 0, 0, width, height)
+  return canvas.toDataURL('image/png')
 }
 
 interface FaviconProps {
@@ -64,13 +84,12 @@ export default function Favicon({ url, className, editable }: FaviconProps) {
     cacheImg.crossOrigin = 'anonymous'
     cacheImg.onload = () => {
       try {
-        const canvas = document.createElement('canvas')
-        canvas.width = cacheImg.naturalWidth || 32
-        canvas.height = cacheImg.naturalHeight || 32
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
-        ctx.drawImage(cacheImg, 0, 0)
-        setCachedFavicon(hostname, canvas.toDataURL('image/png'))
+        const dataUrl = toCappedDataUrl(
+          cacheImg,
+          cacheImg.naturalWidth || 32,
+          cacheImg.naturalHeight || 32,
+        )
+        if (dataUrl) setCachedFavicon(hostname, dataUrl)
       } catch {
         // Tainted canvas (no CORS) — can't cache this one.
       }
@@ -86,13 +105,20 @@ export default function Favicon({ url, className, editable }: FaviconProps) {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file || !hostname) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result !== 'string') return
-      setCachedFavicon(hostname, reader.result, true)
-      setSrc(reader.result)
+    const objectUrl = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      try {
+        const dataUrl = toCappedDataUrl(img, img.naturalWidth, img.naturalHeight)
+        if (dataUrl) {
+          setCachedFavicon(hostname, dataUrl, true)
+          setSrc(dataUrl)
+        }
+      } finally {
+        URL.revokeObjectURL(objectUrl)
+      }
     }
-    reader.readAsDataURL(file)
+    img.src = objectUrl
   }
 
   const icon = src ? (

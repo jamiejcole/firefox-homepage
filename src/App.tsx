@@ -5,6 +5,7 @@ import GithubRepos from './components/GithubRepos'
 import QuickPins from './components/QuickPins'
 import SearchBar from './components/SearchBar'
 import Sidebar from './components/Sidebar'
+import { getAllFavicons, mergeFaviconCache, type FaviconCache } from './lib/faviconCache'
 import { loadSettings, saveSettings, type Settings } from './lib/settings'
 import { exportData, loadData, mergeData, saveData } from './lib/storage'
 import type { HomepageData } from './types'
@@ -41,7 +42,7 @@ function App() {
   }
 
   function handleExport() {
-    const exported = exportData(data)
+    const exported = { ...exportData(data), faviconCache: getAllFavicons() }
     const stamp = new Date().toISOString().slice(0, 10)
     download(`homepage-bookmarks-${stamp}.json`, JSON.stringify(exported, null, 2))
   }
@@ -49,9 +50,10 @@ function App() {
   async function handleImportFile(file: File) {
     try {
       const text = await file.text()
-      const incoming = JSON.parse(text) as HomepageData
+      const incoming = JSON.parse(text) as HomepageData & { faviconCache?: FaviconCache }
       if (!incoming.groups || !incoming.bookmarks) throw new Error('invalid file')
       setData((prev) => mergeData(prev, incoming))
+      if (incoming.faviconCache) mergeFaviconCache(incoming.faviconCache)
     } catch {
       alert('That file could not be imported — it does not look like a valid export.')
     }
