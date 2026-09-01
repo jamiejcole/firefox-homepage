@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Custom New Tab",
+  "version": "1.0.0",
+  "description": "Overrides the new tab page with a custom homepage (bookmarks, clock, search, GitHub repos, quick pins).",
+  "chrome_url_overrides": {
+    "newtab": "newtab/index.html"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "custom-newtab-homepage@youremail.com",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  }
+}

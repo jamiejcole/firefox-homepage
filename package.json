@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "package": "npm run build && cd extension && rm -f ../homepage-extension.xpi && zip -r ../homepage-extension.xpi . -x '.*'",
     "lint": "oxlint",
     "preview": "vite preview"
   },
